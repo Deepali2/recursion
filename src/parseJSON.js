@@ -1,202 +1,247 @@
-//understanding how JSON.parse works
-const json = JSON.stringify('hello');
+// this is what you would do if you were one to do things the easy way:
+// var parseJSON = JSON.parse;
 
-console.log(typeof json);
-console.log(json); //""hello""
+// but you're not, so you'll write it from scratch:
 
-const parsedJson = JSON.parse(json);
+//understanding JSON.stringify() and JSON.parse()
+//a string
+var testing = 'hello';
+var stringified = JSON.stringify(testing);
+console.log(stringified);
+console.log(typeof (stringified));
+console.log(JSON.parse(stringified));
+console.log(typeof (JSON.parse(stringified)));
 
-console.log(JSON.parse('"hello"'));
+//a number
+var testing1 = 453 - 56;
+var stringified = JSON.stringify(testing1);
+console.log(stringified);
+console.log(typeof (stringified));
+console.log(JSON.parse(stringified));
+console.log(typeof (JSON.parse(stringified)));
 
-console.log(JSON.parse('2'));
+//an array
+var testing2 = [5, 'hello', [2, 'love'], { 'a': 'math', 'b': 7 }];
+var stringified = JSON.stringify(testing2);
+console.log(stringified);
+console.log(typeof (stringified));
+console.log(JSON.parse(stringified));
+console.log(typeof (JSON.parse(stringified)));
 
-console.log(typeof parsedJson);
-console.log(parsedJson);
+//an object
+var testing2 = { 'c': 9, 'd': 'calculus', 'e': [2, 'Tintin'], 'f': { 'g': 'book', 'h': 'Enid Blyton' } };
+var stringified = JSON.stringify(testing2);
+console.log(stringified);
+console.log(typeof (stringified));
+console.log(JSON.parse(stringified));
+console.log(typeof (JSON.parse(stringified)));
 
-/*
-  { key <- string : value }
+// Here is where the code starts
+//parseJSON code
 
-  primitives:
-    boolean
-    numbers
-    string
-*/
+var parseJSON = json => {
 
-/*
-  input: has to accept json (string)
-  output: 
-  
-  Base, if the value is primative return the primative value
+  // Initial paramater
+  var index = 0;
+  var character = ' ';
 
-  base: if the string is empty return ''
-  base: if our string === 'true' then return true
-  base: if our string === 'false' then return false
-  base: if Number function works then return the int
-  base: if the string starts with a double quote, 
-    return all characters between the double quotes
-
-  recursive: if the value is a reference, we then  
-*/
-
-function parseJSON(value) {
-  // base cases
-  if (value === '') { return '';}
-  if (value === 'true') { return true; }
-  if (value === 'false') { return false; }
-
-  //if a number needs to be returned
-  if (Number(value) || value === '0') { return Number(value); }
-
-  //if a string needs to be returned
-  if (value[0] === '"' && value[value.length - 1] === '"') {
-    return value.slice(1, -1);
-  }
-
-  //recursive cases
-  //if an array needs to be returned
-  if (value[0] === '[' && value[value.length - 1] === ']') {
-    if (value === '[]') { return []; }
-    const acc = [];
-    const contents = value.slice(1, -1);
-    const stringifiedValues = contents.split(',');
-
-    for (let value of stringifiedValues) {
-      acc.push(parseJSON(value));
+  //helper function next()
+  //it assists in moving to the next character in the json string
+  //it accepts the character ch to check for expected characters
+  //it returns the character at the next index
+  var next = ch => {
+    //console.log (ch);
+    if (ch && ch !== character) {
+      throw new SyntaxError("Expected '" + ch + "' instead of '" + character + "'");
     }
-    return acc;
-  }
-  console.log(value);
+    character = json.charAt(index);
+    index++;
+    return character;
+  };
 
-  //if an object needs to be returned
-
-  // const input = JSON.stringify({ 'a': { 'a_1': true, 'a_2': {}, 'b': { 'c': 'hello' } } });
-
-  // console.log(input);
-
-  // const output = JSON.parse('{"a":{"a_1":true,"a_2":{},"b":{"c":"hello"}}}');
-
-  // console.log(output);
-
-  if (value[0] === '{' && value[value.length - 1] === '}') {
-    if (value === '{}') {
-      return {};
+  //helper function whitespace finder
+  //clean the whitespace until a character is found
+  var whitespace = () => {
+    while (character && character <= ' ') {
+      next();
     }
-    const acc = {};
-    let colonIndex;
-    for (let i = 1; i < value.length - 1; i++) {
-      if (value[i] === ':') {
-        colonIndex = i;  //colon index gives the index of the colon
-        break;
+  };
+
+  // parseString() - innerParser
+  // parse a "string" value
+  // return the parsed string
+  var parseString = () => {
+    var str = '';
+    var exception = {
+      '"': '"',
+      '\\': '\\',
+      '/': '/',
+      b: '\b',
+      f: '\f',
+      n: '\n',
+      r: '\r',
+      t: '\t'
+    };
+
+    if (character === '"') {
+      while (next()) {
+        if (character === '"') {
+          next('"');
+          return str;
+        } else if (character === '\\') {
+          next();
+          if (typeof exception[character] === 'string') {
+            str += exception[character];
+          } else {
+            break;
+          }
+        } else {
+          str += character;
+        }
       }
     }
-    const key = value.slice(2, colonIndex - 1);
-    console.log(parseBrackets(value, colonIndex - 1));
-    const keyValue = value.slice(colonIndex + 1, parseBrackets(value, colonIndex - 1));
-    console.log(keyValue);
-    acc[key] = parseJSON(keyValue);
-    return acc;
-  }
+    throw new SyntaxError('Bad string');
+  };  // parseNumber() - innerParser
+  // parse a number value [negative, positive, floats]
+  // return the parsed number
 
-//helper function for if an object needs to be returned
 
-function parseBrackets(string, start) {
-  //intilize an array stack
-  const stack = [];
-  const bracketDic = { '{': '}', '[': ']' };
-  //iterate through string starting from start
-  for (let i = start; i < string.length; i++) {
-    let c = string[i];
-    //if we come across an open [ or { we can push to stack
-    if (c === '[' || c === '{') {
-      stack.push(c);
-    }
-    //if we come across a } or ] we can remove from stack
-    if (stack.length === 0 && (c === ',' || c === '}')) {
-      return i;
-    }
-    if ((c === ']' || c === '}') && c === bracketDic[stack[stack.length - 1]]) {
-      stack.pop();
+  var parseNumber = () => {
+    var str = "";
+    var number;
+
+    if (character === '-') {
+      str += '-';
+      next();
     }
 
-    //if array is empty
-    // when we come to a , return the end
-  }
-}
+    while (character >= '0' && character <= '9') {
+      str += character;
+      next();
+    }
 
-  /*
-    look for curly bracket
-    return empty objects
- 
-    find the first colon,
-      slice everything before and set the key as a string
-      call parseBrackets
-        slice from the start and end
-        set as the value of the key
-      check if we're at the end bracket or a comma
-        
- 
-    "{ a: { b: 'hello' }}"
-  */
-}
+    if (character === '.') {
+      str += character;
+      while (next() && character >= '0' && character <= '9') {
+        str += character;
+      }
+    }
+    console.log(str);
+    number = Number(str);
 
-// '{"a":{"a_1":true,"a_2":{},"b":{"c":"hello"}}'
-//  0123456789
+    if (isNaN(number)) {
+      throw new SyntaxError("Bad number");
+    } else {
+      return number;
+    }
+  };
 
-//parses a string and matches brackets
-/*
-  input: value -> string
-  input: index of "start" (character after the first colon)
+  //parsing an Array. 
+  //parseArray() is inner parse function expression
+  var parseArray = () => {
+    var arr = [];
+    if (character === '[') {
+      next();
+      whitespace();
+      if (character === ']') {
+        next();
+        return arr;
+      }
+      while (character) {
+        arr.push(parseValue());
+        whitespace();
+        if (character === ']') {
+          next();
+          return arr;
+        }
+        next();
+        whitespace();
+      }
+    }
+    throw new SyntaxError('Bad array');
+  };
 
-  output: index of the "end (the comma outside of the closing bracket)
+  //parsing an Object
+  // parseObject() is inner parse function expression
+  var parseObject = () => {
+    var obj = {};
 
-    stack = [  ]
-    ...{"a_1":true,"a_2":},"b":{"c":"hello"}}'
+    if (character === '{') {
+      next();
+      whitespace();
+      if (character === '}') {
+        next();
+        return obj;
+      }
+      while (character) {
+        var key = parseString();
+        whitespace();
+        next(':');
+        var value = parseValue();
+        obj[key] = value;
+        whitespace();
+        if (character === '}') {
+          next();
+          return obj;
+        }
+        next(',');
+        whitespace();
+      }
+    }
+    throw new SyntaxError('Bad object');
+  };
 
-*/
-"[12, 'hello', {}]"
-["12", " hello", " {}"];
+  // parseSpecial() - innerParser
+  // parse some special values [booleans, null]  
+  var parseSpecial = () => {
+    if (character === 't') {
+      next('t');
+      next('r');
+      next('u');
+      next('e');
+      return true;
+    }
 
+    if (character === 'f') {
+      next('f');
+      next('a');
+      next('l');
+      next('s');
+      next('e');
+      return false;
+    }
 
-//Test-Suite
-// if passed zero, should return zero
-console.log(parseJSON(JSON.stringify(0)));
+    if (character === 'n') {
+      next('n');
+      next('u');
+      next('l');
+      next('l');
+      return null;
+    }
+  };
 
-//the type should be a number
-console.log(typeof parseJSON(JSON.stringify(0))); // number
+  // main function parseValue() 
+  // call the right parser depending on what he need to parse [string, number, array, object, special]
+  // return the innerParser result accordingly
+  var parseValue = () => {
+    whitespace();
+    if (character === '"') {
+      return parseString();
+    } else if (character === '-' || character >= '0' && character <= '9') {
+      return parseNumber();
+    } else if (character === '[') {
+      return parseArray();
+    } else if (character === '{') {
+      return parseObject();
+    } else {
+      return parseSpecial();
+    }
+  };
 
-// if passing a string, shouldn't return a number
-console.log(parseJSON(JSON.stringify('0hello')));
+  return parseValue();
+};
 
-// should return negatives
-console.log(parseJSON(JSON.stringify(-1)));
-console.log(typeof parseJSON(JSON.stringify(-1)));
-
-// should return floats
-console.log(parseJSON(JSON.stringify(0.1)));
-console.log(typeof parseJSON(JSON.stringify(0.1)));
-
-console.log(typeof parseJSON('true'));
-
-// "true" -> true
-
-//should return strings
-console.log(parseJSON(JSON.stringify('hello')));
-console.log(typeof parseJSON(JSON.stringify('hello')));
-
-console.log(parseJSON(JSON.stringify([12, 'hello', true])));
-const values = parseJSON(JSON.stringify([12, 'hello', true]));
-
-console.log(parseJSON(JSON.stringify([''])));
-
-values.forEach(val => console.log(typeof val));
-
-//should return empty array if passed empty array
-console.log(parseJSON(JSON.stringify([])));
-
-// parse brackets should return index of first comma outside of brackets
-//console.log(parseBrackets('{"a_1":true,"a_2":},"b":{"c":"hello"}}'));
-
-//shoud parse simple object
-console.log(parseJSON(JSON.stringify({ a: "hello" })));
-
+// testing the parsing function
+var json = JSON.stringify('713-385.7101');
+console.log(parseJSON(json));
 
